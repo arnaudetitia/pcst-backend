@@ -15,7 +15,13 @@ export class App {
     this.app.use(express.json());
   }
 
-  private routes(): void {}
+  private routes(): void {
+    //HEALTH
+
+    this.app.get("/health", async (req, res) => {
+      return res.status(200).json(true);
+    });
+  }
 
   public listen(port: number): void {
     this.app.listen(port, () => {

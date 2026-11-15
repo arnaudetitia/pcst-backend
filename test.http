@@ -1,0 +1,4 @@
+### Route health
+
+GET http://localhost:3036/health
+Content-Type: application/json
