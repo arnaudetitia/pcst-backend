@@ -1,5 +1,6 @@
 import express, { Application } from "express";
 import cors from "cors";
+import dotenv from "dotenv";
 
 export class App {
   public app: Application;
@@ -11,11 +12,37 @@ export class App {
   }
 
   private config(): void {
-    this.app.use(cors());
+    dotenv.config({
+      path: `environments/environment.${process.env.NODE_ENV}`,
+    });
+    const allowedOrigins = [
+      "http://localhost:4200",
+      "https://pcst-host.onrender.com",
+    ];
+    this.app.use(
+      cors({
+        origin: (origin, callback) => {
+          if (process.env.NODE_ENV === "prod") {
+            if (origin && allowedOrigins.includes(origin)) callback(null, true);
+            else {
+              callback(new Error("Interdit"));
+            }
+          } else {
+            callback(null, true);
+          }
+        },
+      }),
+    );
     this.app.use(express.json());
   }
 
-  private routes(): void {}
+  private routes(): void {
+    //HEALTH
+
+    this.app.get("/health", async (req, res) => {
+      return res.status(200).json(true);
+    });
+  }
 
   public listen(port: number): void {
     this.app.listen(port, () => {
