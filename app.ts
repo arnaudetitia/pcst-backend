@@ -42,6 +42,14 @@ export class App {
     this.app.get("/health", async (req, res) => {
       return res.status(200).json(true);
     });
+
+    // ADMIN
+    this.app.post("/admin", async (req, res) => {
+      if (req.body.mdpAdmin.localeCompare(process.env.ADMIN_PASSWORD) === 0) {
+        return res.status(200).json({ success: true });
+      }
+      return res.status(403).json({ error: "Mot de passe incorrect" });
+    });
   }
 
   public listen(port: number): void {
