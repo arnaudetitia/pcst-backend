@@ -1,12 +1,15 @@
 import express, { Application } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { QuestionController } from "./controllers/question.controller";
 
 export class App {
   public app: Application;
+  public questionsController: QuestionController;
 
   constructor() {
     this.app = express();
+    this.questionsController = new QuestionController();
     this.config();
     this.routes();
   }
@@ -49,6 +52,31 @@ export class App {
         return res.status(200).json({ success: true });
       }
       return res.status(403).json({ error: "Mot de passe incorrect" });
+    });
+
+    // QUESTIONS
+    this.app.get("/questions", async (req, res) => {
+      try {
+        const allQuestions = await this.questionsController.getAllQuestions();
+        res.json(
+          allQuestions.map((question) => {
+            return {
+              ...question,
+              id: Number(question.id),
+              bonne_reponse: Number.parseInt(question.bonne_reponse),
+              reponses: question.reponses.map((r: string) =>
+                Number.parseInt(r),
+              ),
+            };
+          }),
+        );
+      } catch (error) {
+        console.error(
+          "Erreur lors de la récupération de toutes les questions:",
+          error,
+        );
+        res.status(500).json({ error: "Erreur serveur" });
+      }
     });
   }
 
