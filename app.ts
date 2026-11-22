@@ -2,6 +2,7 @@ import express, { Application } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { QuestionController } from "./controllers/question.controller";
+import { QuestionVo } from "./models/question.model";
 
 export class App {
   public app: Application;
@@ -58,18 +59,7 @@ export class App {
     this.app.get("/questions", async (req, res) => {
       try {
         const allQuestions = await this.questionsController.getAllQuestions();
-        res.json(
-          allQuestions.map((question) => {
-            return {
-              ...question,
-              id: Number(question.id),
-              bonne_reponse: Number.parseInt(question.bonne_reponse),
-              reponses: question.reponses.map((r: string) =>
-                Number.parseInt(r),
-              ),
-            };
-          }),
-        );
+        res.json(allQuestions.map((question) => this.mapQuestion(question)));
       } catch (error) {
         console.error(
           "Erreur lors de la récupération de toutes les questions:",
@@ -78,6 +68,27 @@ export class App {
         res.status(500).json({ error: "Erreur serveur" });
       }
     });
+
+    this.app.post("/questions", async (req, res) => {
+      try {
+        const questionVo = req.body.question;
+        await this.questionsController.createQuestion(questionVo);
+        const allQuestions = await this.questionsController.getAllQuestions();
+        res.json(allQuestions.map((question) => this.mapQuestion(question)));
+      } catch (error) {
+        console.error("Erreur lors de l'insertion d'une question:", error);
+        res.status(500).json({ error: "Erreur serveur" });
+      }
+    });
+  }
+
+  public mapQuestion(question: any) {
+    return {
+      ...question,
+      id: Number(question.id),
+      bonne_reponse: Number.parseInt(question.bonne_reponse),
+      reponses: question.reponses.map((r: string) => Number.parseInt(r)),
+    };
   }
 
   public listen(port: number): void {

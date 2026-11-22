@@ -1,4 +1,5 @@
 import database = require("../database");
+import { QuestionVo } from "../models/question.model";
 
 export class QuestionController {
   public async getAllQuestions() {
@@ -7,12 +8,29 @@ export class QuestionController {
       `SELECT 
             q.id,
             q.question,
-            q.mot_question,
+            q.mot_indice,
             q.bonne_reponse,
             q.reponses
         FROM pcst.questions q
         `,
     );
     return result.rows;
+  }
+
+  public async createQuestion(questionVo: QuestionVo) {
+    const pool = database.Database.getPool();
+    await pool.query({
+      text: `
+          
+        INSERT INTO pcst.questions(question, mot_indice, bonne_reponse, reponses)
+        VALUES ($1,$2,$3,$4)
+        `,
+      values: [
+        questionVo.question,
+        questionVo.motIndice,
+        questionVo.bonneReponse,
+        questionVo.reponses,
+      ],
+    });
   }
 }
