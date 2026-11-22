@@ -80,6 +80,24 @@ export class App {
         res.status(500).json({ error: "Erreur serveur" });
       }
     });
+
+    this.app.put("/questions", async (req, res) => {
+      const idQuestion = req.body.idQuestion;
+      try {
+        const questionVo = req.body.question;
+        await this.questionsController.updateQuestion(idQuestion, questionVo);
+        const allQuestions = await this.questionsController.getAllQuestions();
+        res.json(allQuestions.map((question) => this.mapQuestion(question)));
+      } catch (error) {
+        console.error(
+          "Erreur lors de la mise à jour de la question d'id " +
+            idQuestion +
+            ":",
+          error,
+        );
+        res.status(500).json({ error: "Erreur serveur" });
+      }
+    });
   }
 
   public mapQuestion(question: any) {
