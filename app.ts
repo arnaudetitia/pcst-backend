@@ -98,6 +98,31 @@ export class App {
         res.status(500).json({ error: "Erreur serveur" });
       }
     });
+
+    this.app.post("/questions/import", async (req, res) => {
+      try {
+        const csvContent = req.body.csvFileContent;
+        const doImport = req.body.doImport;
+        const erreurs = await this.questionsController.importQuestions(
+          csvContent,
+          doImport,
+        );
+        if (erreurs.length > 0) {
+          res.json({ erreurs, questions: [] });
+        } else {
+          const allQuestions = await this.questionsController.getAllQuestions();
+          res.json({
+            erreurs: [],
+            questions: allQuestions.map((question) =>
+              this.mapQuestion(question),
+            ),
+          });
+        }
+      } catch (error) {
+        console.error("Erreur lors de la mise l'import des questions :", error);
+        res.status(500).json({ error: "Erreur serveur" });
+      }
+    });
   }
 
   public mapQuestion(question: any) {
