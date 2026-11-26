@@ -1,12 +1,16 @@
 import express, { Application } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { QuestionController } from "./controllers/question.controller";
+import { QuestionVo } from "./models/question.model";
 
 export class App {
   public app: Application;
+  public questionsController: QuestionController;
 
   constructor() {
     this.app = express();
+    this.questionsController = new QuestionController();
     this.config();
     this.routes();
   }
@@ -50,6 +54,84 @@ export class App {
       }
       return res.status(403).json({ error: "Mot de passe incorrect" });
     });
+
+    // QUESTIONS
+    this.app.get("/questions", async (req, res) => {
+      try {
+        const allQuestions = await this.questionsController.getAllQuestions();
+        res.json(allQuestions.map((question) => this.mapQuestion(question)));
+      } catch (error) {
+        console.error(
+          "Erreur lors de la récupération de toutes les questions:",
+          error,
+        );
+        res.status(500).json({ error: "Erreur serveur" });
+      }
+    });
+
+    this.app.post("/questions", async (req, res) => {
+      try {
+        const questionVo = req.body.question;
+        await this.questionsController.createQuestion(questionVo);
+        const allQuestions = await this.questionsController.getAllQuestions();
+        res.json(allQuestions.map((question) => this.mapQuestion(question)));
+      } catch (error) {
+        console.error("Erreur lors de l'insertion d'une question:", error);
+        res.status(500).json({ error: "Erreur serveur" });
+      }
+    });
+
+    this.app.put("/questions", async (req, res) => {
+      const idQuestion = req.body.idQuestion;
+      try {
+        const questionVo = req.body.question;
+        await this.questionsController.updateQuestion(idQuestion, questionVo);
+        const allQuestions = await this.questionsController.getAllQuestions();
+        res.json(allQuestions.map((question) => this.mapQuestion(question)));
+      } catch (error) {
+        console.error(
+          "Erreur lors de la mise à jour de la question d'id " +
+            idQuestion +
+            ":",
+          error,
+        );
+        res.status(500).json({ error: "Erreur serveur" });
+      }
+    });
+
+    this.app.post("/questions/import", async (req, res) => {
+      try {
+        const csvContent = req.body.csvFileContent;
+        const doImport = req.body.doImport;
+        const erreurs = await this.questionsController.importQuestions(
+          csvContent,
+          doImport,
+        );
+        if (erreurs.length > 0) {
+          res.json({ erreurs, questions: [] });
+        } else {
+          const allQuestions = await this.questionsController.getAllQuestions();
+          res.json({
+            erreurs: [],
+            questions: allQuestions.map((question) =>
+              this.mapQuestion(question),
+            ),
+          });
+        }
+      } catch (error) {
+        console.error("Erreur lors de la mise l'import des questions :", error);
+        res.status(500).json({ error: "Erreur serveur" });
+      }
+    });
+  }
+
+  public mapQuestion(question: any) {
+    return {
+      ...question,
+      id: Number(question.id),
+      bonne_reponse: Number.parseInt(question.bonne_reponse),
+      reponses: question.reponses.map((r: string) => Number.parseInt(r)),
+    };
   }
 
   public listen(port: number): void {
