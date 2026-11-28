@@ -6,3 +6,7 @@ Content-Type: application/json
 ### Route Questions
 GET http://localhost:3036/questions
 Content-Type: application/json
+
+### Route Partie
+GET http://localhost:3036/parties
+Content-Type: application/json
