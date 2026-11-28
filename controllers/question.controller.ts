@@ -5,6 +5,29 @@ import { ErreurImportFichier } from "../models/erreur-import-fichier.model";
 import { QuestionVo } from "../models/question.model";
 import { CsvReaderUtil } from "../utils/csv-reader.util";
 
+function normalizeText(value: string | undefined): string {
+  if (!value) {
+    return "";
+  }
+
+  return value
+    .normalize("NFKC")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/\p{Cf}/gu, "")
+    .toLocaleLowerCase("fr-FR")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+function containsMotIndice(question: string, motIndice: string): boolean {
+  const normalizedMotIndice = normalizeText(motIndice);
+  return (
+    normalizedMotIndice.length > 0 &&
+    normalizeText(question).indexOf(normalizedMotIndice) !== -1
+  );
+}
+
 export class QuestionController {
   public async getAllQuestions() {
     const pool = database.Database.getPool();
@@ -16,6 +39,7 @@ export class QuestionController {
             q.bonne_reponse,
             q.reponses
         FROM pcst.questions q
+        ORDER BY q.id
         `,
     );
     return result.rows;
@@ -78,13 +102,13 @@ export class QuestionController {
           message: 'Champ "mot_indice" manquant',
         });
       }
-      const motList = record[CSVQuestionColumns.QUESTION]
-        .split(" ")
-        .map((mot: string) => mot.toLowerCase());
       if (
         record[CSVQuestionColumns.QUESTION] &&
         record[CSVQuestionColumns.MOT_INDICE] &&
-        !motList.includes(record[CSVQuestionColumns.MOT_INDICE])
+        !containsMotIndice(
+          record[CSVQuestionColumns.QUESTION],
+          record[CSVQuestionColumns.MOT_INDICE],
+        )
       ) {
         erreurs.push({
           ligne: index + 1,
@@ -162,7 +186,13 @@ export class QuestionController {
           });
         }
       }
-      if (reponseMin && bonneReponse && reponseMin >= bonneReponse) {
+      if (
+        reponseMin &&
+        bonneReponse &&
+        place &&
+        reponseMin > bonneReponse &&
+        place !== 1
+      ) {
         erreurs.push({
           ligne: index + 1,
           type: "error",
@@ -170,7 +200,13 @@ export class QuestionController {
             "La réponse minimale doit être inférieure à la bonne réponse",
         });
       }
-      if (bonneReponse && reponseMax && reponseMax <= bonneReponse) {
+      if (
+        bonneReponse &&
+        reponseMax &&
+        place &&
+        reponseMax < bonneReponse &&
+        place !== 10
+      ) {
         erreurs.push({
           ligne: index + 1,
           type: "error",
@@ -299,11 +335,11 @@ export class QuestionController {
     }
 
     return [
-      reponseMin,
+      ...(place !== 1 ? [reponseMin] : []),
       ...Array.from(reponsesAvant),
       bonneReponse,
       ...Array.from(reponsesApres),
-      reponseMax,
+      ...(place !== 10 ? [reponseMax] : []),
     ].sort((a, b) => a - b);
   }
 
