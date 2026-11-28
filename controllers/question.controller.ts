@@ -5,6 +5,58 @@ import { ErreurImportFichier } from "../models/erreur-import-fichier.model";
 import { QuestionVo } from "../models/question.model";
 import { CsvReaderUtil } from "../utils/csv-reader.util";
 
+function normalizeWords(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .normalize("NFKC")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/\p{Cf}/gu, "")
+    .toLocaleLowerCase("fr-FR")
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((word) => word.length > 0);
+}
+
+function wordsMatch(questionWord: string, motIndiceWord: string): boolean {
+  if (questionWord === motIndiceWord) {
+    return true;
+  }
+
+  if (
+    questionWord.endsWith("s") &&
+    questionWord.slice(0, -1) === motIndiceWord
+  ) {
+    return true;
+  }
+
+  if (
+    motIndiceWord.endsWith("s") &&
+    motIndiceWord.slice(0, -1) === questionWord
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function containsWordSequence(
+  questionWords: string[],
+  motIndiceWords: string[],
+): boolean {
+  if (motIndiceWords.length === 0) {
+    return false;
+  }
+
+  return questionWords.some((_, index) =>
+    motIndiceWords.every((word, motIndiceIndex) =>
+      wordsMatch(questionWords[index + motIndiceIndex] ?? "", word),
+    ),
+  );
+}
+
 export class QuestionController {
   public async getAllQuestions() {
     const pool = database.Database.getPool();
@@ -16,6 +68,7 @@ export class QuestionController {
             q.bonne_reponse,
             q.reponses
         FROM pcst.questions q
+        ORDER BY q.id
         `,
     );
     return result.rows;
@@ -78,13 +131,14 @@ export class QuestionController {
           message: 'Champ "mot_indice" manquant',
         });
       }
-      const motList = record[CSVQuestionColumns.QUESTION]
-        .split(" ")
-        .map((mot: string) => mot.toLowerCase());
+      const questionWords = normalizeWords(record[CSVQuestionColumns.QUESTION]);
+      const motIndiceWords = normalizeWords(
+        record[CSVQuestionColumns.MOT_INDICE],
+      );
       if (
         record[CSVQuestionColumns.QUESTION] &&
         record[CSVQuestionColumns.MOT_INDICE] &&
-        !motList.includes(record[CSVQuestionColumns.MOT_INDICE])
+        !containsWordSequence(questionWords, motIndiceWords)
       ) {
         erreurs.push({
           ligne: index + 1,
@@ -162,7 +216,13 @@ export class QuestionController {
           });
         }
       }
-      if (reponseMin && bonneReponse && reponseMin >= bonneReponse) {
+      if (
+        reponseMin &&
+        bonneReponse &&
+        place &&
+        reponseMin > bonneReponse &&
+        place !== 1
+      ) {
         erreurs.push({
           ligne: index + 1,
           type: "error",
@@ -170,7 +230,13 @@ export class QuestionController {
             "La réponse minimale doit être inférieure à la bonne réponse",
         });
       }
-      if (bonneReponse && reponseMax && reponseMax <= bonneReponse) {
+      if (
+        bonneReponse &&
+        reponseMax &&
+        place &&
+        reponseMax < bonneReponse &&
+        place !== 10
+      ) {
         erreurs.push({
           ligne: index + 1,
           type: "error",
@@ -299,11 +365,11 @@ export class QuestionController {
     }
 
     return [
-      reponseMin,
+      ...(place !== 1 ? [reponseMin] : []),
       ...Array.from(reponsesAvant),
       bonneReponse,
       ...Array.from(reponsesApres),
-      reponseMax,
+      ...(place !== 10 ? [reponseMax] : []),
     ].sort((a, b) => a - b);
   }
 
