@@ -5,9 +5,9 @@ import { ErreurImportFichier } from "../models/erreur-import-fichier.model";
 import { QuestionVo } from "../models/question.model";
 import { CsvReaderUtil } from "../utils/csv-reader.util";
 
-function normalizeWords(value: string | undefined): string[] {
+function normalizeText(value: string | undefined): string {
   if (!value) {
-    return [];
+    return "";
   }
 
   return value
@@ -16,44 +16,15 @@ function normalizeWords(value: string | undefined): string[] {
     .replace(/\p{M}/gu, "")
     .replace(/\p{Cf}/gu, "")
     .toLocaleLowerCase("fr-FR")
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter((word) => word.length > 0);
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 }
 
-function wordsMatch(questionWord: string, motIndiceWord: string): boolean {
-  if (questionWord === motIndiceWord) {
-    return true;
-  }
-
-  if (
-    questionWord.endsWith("s") &&
-    questionWord.slice(0, -1) === motIndiceWord
-  ) {
-    return true;
-  }
-
-  if (
-    motIndiceWord.endsWith("s") &&
-    motIndiceWord.slice(0, -1) === questionWord
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-function containsWordSequence(
-  questionWords: string[],
-  motIndiceWords: string[],
-): boolean {
-  if (motIndiceWords.length === 0) {
-    return false;
-  }
-
-  return questionWords.some((_, index) =>
-    motIndiceWords.every((word, motIndiceIndex) =>
-      wordsMatch(questionWords[index + motIndiceIndex] ?? "", word),
-    ),
+function containsMotIndice(question: string, motIndice: string): boolean {
+  const normalizedMotIndice = normalizeText(motIndice);
+  return (
+    normalizedMotIndice.length > 0 &&
+    normalizeText(question).indexOf(normalizedMotIndice) !== -1
   );
 }
 
@@ -131,14 +102,13 @@ export class QuestionController {
           message: 'Champ "mot_indice" manquant',
         });
       }
-      const questionWords = normalizeWords(record[CSVQuestionColumns.QUESTION]);
-      const motIndiceWords = normalizeWords(
-        record[CSVQuestionColumns.MOT_INDICE],
-      );
       if (
         record[CSVQuestionColumns.QUESTION] &&
         record[CSVQuestionColumns.MOT_INDICE] &&
-        !containsWordSequence(questionWords, motIndiceWords)
+        !containsMotIndice(
+          record[CSVQuestionColumns.QUESTION],
+          record[CSVQuestionColumns.MOT_INDICE],
+        )
       ) {
         erreurs.push({
           ligne: index + 1,
