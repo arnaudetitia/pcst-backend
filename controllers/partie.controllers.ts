@@ -21,4 +21,15 @@ export class PartieController {
                 `);
     return result.rows;
   }
+
+  public async createNewPartie(partie: any) {
+    const pool = database.Database.getPool();
+    await pool.query({
+      text: `
+        INSERT INTO pcst.parties(nom_partie, ids_questions)
+        VALUES ($1, $2)
+      `,
+      values: [partie.nomPartie, partie.idsQuestions],
+    });
+  }
 }

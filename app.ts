@@ -145,6 +145,26 @@ export class App {
         res.status(500).json({ error: "Erreur serveur" });
       }
     });
+
+    this.app.post("/parties", async (req, res) => {
+      try {
+        const newPartie = JSON.parse(req.body.partie);
+        await this.partiesController.createNewPartie(newPartie);
+        const allParties = await this.partiesController.getAllParties();
+        res.json(
+          allParties.map((partie) => {
+            return {
+              id: Number.parseInt(partie.id),
+              nom_partie: partie.nom_partie,
+              liste_questions: partie.liste_questions,
+            };
+          }),
+        );
+      } catch (error) {
+        console.error("Erreur lors de la création d'une partie:", error);
+        res.status(500).json({ error: "Erreur serveur" });
+      }
+    });
   }
 
   public mapQuestion(question: any) {
